@@ -1,11 +1,21 @@
 #include <string>
 #include <chrono>
+#include <iomanip>
 #include <iostream>
 
 #include "format.h"
 
 using std::string;
 using std::to_string;
+using std::setw;
+using std::setfill;
+
+string Format::formatTimeUnit(int timeUnit) {
+    if (timeUnit < 10) {
+        return "0" + to_string(timeUnit);
+    }
+    return to_string(timeUnit);
+}
 
 // TODO: Complete this helper function
 // INPUT: Long int measuring seconds
@@ -13,10 +23,6 @@ using std::to_string;
 string Format::ElapsedTime(long seconds) { 
     // Catch invalid values 
     if (seconds <= 0) return string();
-
-    // TODO: calculate the elapsed time
-    // auto now = std::chrono::system_clock::now().time_since_epoch();
-    // long long currentTime = (long long) std::chrono::duration_cast<std::chrono::seconds>(now).count();
 
     long time = seconds;
 	int hour = 0, min = 0, sec = 0;
@@ -26,5 +32,6 @@ string Format::ElapsedTime(long seconds) {
 	min = time/60;
 	time = time%60;
 	sec = time;
-    return to_string(hour) + ":" + to_string(min) + ":" + to_string(sec);
+
+    return  Format::formatTimeUnit(hour) + ":" + Format::formatTimeUnit(min) + ":" + Format::formatTimeUnit(sec);
 }
