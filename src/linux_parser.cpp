@@ -105,11 +105,10 @@ long LinuxParser::Jiffies() {
 
 // DONE: Read and return the number of active jiffies for a PID
 long LinuxParser::ActiveJiffies(int pid) { 
-  string value;
   int count = 1;
   long activeJiffiess = 0;
   string filePath = kProcDirectory + to_string(pid) + kStatFilename;
-  string key, line;
+  string key, line, value;
   std::ifstream stream(filePath);
   if (stream.is_open()) {
     std::getline(stream, line);
@@ -251,7 +250,7 @@ string LinuxParser::SearchKeyValueFile(string filePath, string searchedKey, Hand
 
 string LinuxParser::ConvertToMb(string size, string unit) {
   if (unit == "mB") {
-    return size;
+    return size.substr(0, size.find(".") + 3);
   } else if (unit == "kB") {
     double convertedSize = (stod(size)/1000);
     string sizeString = to_string(convertedSize);
