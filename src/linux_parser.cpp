@@ -72,9 +72,9 @@ vector<int> LinuxParser::Pids() {
 
 // DONE: Read and return the system memory utilization
 float LinuxParser::MemoryUtilization() { 
-  string fileName = "/proc" + kMeminfoFilename;
-  string totalMemoryString = LinuxParser::SearchKeyValueFile(fileName, kTotalMemoryKeyIdentifier, GetRamInMbFromStream);
-  string freeMemoryString = LinuxParser::SearchKeyValueFile(fileName, kFreeMemoryKeyIdentifier, GetRamInMbFromStream);
+  string filePath = kProcPathPrefix + kMeminfoFilename;
+  string totalMemoryString = LinuxParser::SearchKeyValueFile(filePath, kTotalMemoryKeyIdentifier, GetRamInMbFromStream);
+  string freeMemoryString = LinuxParser::SearchKeyValueFile(filePath, kFreeMemoryKeyIdentifier, GetRamInMbFromStream);
   if (!totalMemoryString.empty() && !freeMemoryString.empty()) {
     double totalMemory = stod(totalMemoryString);
     double freeMemory = stod(freeMemoryString);
@@ -83,8 +83,19 @@ float LinuxParser::MemoryUtilization() {
   return 0.0; 
 }
 
-// TODO: Read and return the system uptime
-long LinuxParser::UpTime() { return 0; }
+// DONE: Read and return the system uptime
+long LinuxParser::UpTime() { 
+  string filePath = kProcPathPrefix + kUptimeFilename;
+  string line, uptime, idleTime;
+  std::ifstream filestream(filePath);
+  if (filestream.is_open()) {
+    std::getline(filestream, line);
+    std::istringstream linestream(line);
+    linestream >> uptime >> idleTime;
+    return stol(uptime);
+  }
+  return 0;  
+}
 
 // DONE: Read and return the number of jiffies for the system
 long LinuxParser::Jiffies() { 
@@ -92,14 +103,37 @@ long LinuxParser::Jiffies() {
   return LinuxParser::IdleJiffies() + LinuxParser::ActiveJiffies(); 
 }
 
-// TODO: Read and return the number of active jiffies for a PID
-// REMOVE: [[maybe_unused]] once you define the function
-long LinuxParser::ActiveJiffies(int pid[[maybe_unused]]) { return 0; }
+// DONE: Read and return the number of active jiffies for a PID
+long LinuxParser::ActiveJiffies(int pid) { 
+  string value;
+  int count = 1;
+  long activeJiffiess = 0;
+  string filePath = kProcDirectory + to_string(pid) + kStatFilename;
+  string key, line;
+  std::ifstream stream(filePath);
+  if (stream.is_open()) {
+    std::getline(stream, line);
+    std::istringstream linestream(line);
+    while (linestream >> value) {
+      // #14 utime - CPU time spent in user code, measured in clock ticks
+      // #15 stime - CPU time spent in kernel code, measured in clock ticks
+      // #16 cutime - Waited-for children's CPU time spent in user code (in clock ticks)
+      // #17 cstime - Waited-for children's CPU time spent in kernel code (in clock ticks)
+      if (count >= 14 && count <= 17) {
+        activeJiffiess += stol(value);
+      } else if (count > 17) {
+        break;
+      }
+      count++;
+    }
+  }
+  return activeJiffiess;
+}
 
 // DONE: Read and return the number of active jiffies for the system
 long LinuxParser::ActiveJiffies() { 
-  string fileName = "/proc" + kStatFilename;
-  string activeJiffiesCountString = LinuxParser::SearchKeyValueFile(fileName, kCpuKeyIdentifier, GetActiveJiffiesFromStream);
+  string filePath = kProcPathPrefix + kStatFilename;
+  string activeJiffiesCountString = LinuxParser::SearchKeyValueFile(filePath, kCpuKeyIdentifier, GetActiveJiffiesFromStream);
   if (!activeJiffiesCountString.empty()) {
     return stol(activeJiffiesCountString);
   }
@@ -108,8 +142,8 @@ long LinuxParser::ActiveJiffies() {
 
 // DONE: Read and return the number of idle jiffies for the system
 long LinuxParser::IdleJiffies() { 
-  string fileName = "/proc" + kStatFilename;
-  string idleJiffiesCountString = LinuxParser::SearchKeyValueFile(fileName, kCpuKeyIdentifier, GetIdleJiffiesFromStream);
+  string filePath = kProcPathPrefix + kStatFilename;
+  string idleJiffiesCountString = LinuxParser::SearchKeyValueFile(filePath, kCpuKeyIdentifier, GetIdleJiffiesFromStream);
   if (!idleJiffiesCountString.empty()) {
     return stol(idleJiffiesCountString);
   }
@@ -118,8 +152,6 @@ long LinuxParser::IdleJiffies() {
 
 // TODO: Read and return CPU utilization
 vector<string> LinuxParser::CpuUtilization() { 
-
-// CPU_Percentage = (totald - idled)/totald
   return {};
 }
 
@@ -146,14 +178,14 @@ string LinuxParser::Command(int pid) {
 
 // DONE: Read and return the memory used by a process
 string LinuxParser::Ram(int pid) { 
-  string fileName = kProcDirectory + to_string(pid) + kStatusFilename;
-  return LinuxParser::SearchKeyValueFile(fileName, kRamKeyIdentifier, GetRamInMbFromStream);
+  string filePath = kProcDirectory + to_string(pid) + kStatusFilename;
+  return LinuxParser::SearchKeyValueFile(filePath, kRamKeyIdentifier, GetRamInMbFromStream);
 }
 
 // DONE: Read and return the user ID associated with a process
 string LinuxParser::Uid(int pid) { 
-  string fileName = kProcDirectory + to_string(pid) + kStatusFilename;
-  return LinuxParser::SearchKeyValueFile(fileName, kUidKeyIdentifier, GetNextValueFromStream);
+  string filePath = kProcDirectory + to_string(pid) + kStatusFilename;
+  return LinuxParser::SearchKeyValueFile(filePath, kUidKeyIdentifier, GetNextValueFromStream);
 }
 
 // DONE: Read and return the user associated with a process
@@ -176,24 +208,14 @@ string LinuxParser::User(int pid) {
 
 // DONE: Read and return the uptime of a process
 long LinuxParser::UpTime(int pid) { 
-  string fileName = kProcDirectory + to_string(pid) + kStatFilename;
-  string key, line;
-  std::ifstream stream(fileName);
-  if (stream.is_open()) {
-    std::getline(stream, line);
-    std::istringstream linestream(line);
-    int startTimeIndex = 21;
-    string startTimeString = LinuxParser::GetValueFromLineStream(linestream, startTimeIndex);
-    if (!startTimeString.empty()) {
-      return stol(startTimeString)/sysconf(_SC_CLK_TCK);
-    }
-  }
-  return 0; 
+  long startTimeInJiffies = GetProccessStartTime(pid);
+  // Convert to seconds 
+  return (startTimeInJiffies/sysconf(_SC_CLK_TCK));
 }
 
 int LinuxParser::GetProcessesCount(string keyIdentifier) {
-  string fileName = "/proc" + kStatFilename;
-  string processesString = LinuxParser::SearchKeyValueFile(fileName, keyIdentifier, GetNextValueFromStream);
+  string filePath = kProcPathPrefix + kStatFilename;
+  string processesString = LinuxParser::SearchKeyValueFile(filePath, keyIdentifier, GetNextValueFromStream);
   if (!processesString.empty()) {
     return stoi(processesString);
   }
@@ -202,7 +224,7 @@ int LinuxParser::GetProcessesCount(string keyIdentifier) {
 
 string LinuxParser::GetValueFromLineStream(std::istringstream &linestream, int searchedIndex) {
   string value;
-  int streamIndex = 0;
+  int streamIndex = 1;
   while (linestream >> value) {
     if (streamIndex == searchedIndex) {
       return value;
@@ -212,9 +234,9 @@ string LinuxParser::GetValueFromLineStream(std::istringstream &linestream, int s
   return string();
 }
 
-string LinuxParser::SearchKeyValueFile(string fileName, string searchedKey, HandleKeyFound KeyFoundFunc) {
+string LinuxParser::SearchKeyValueFile(string filePath, string searchedKey, HandleKeyFound KeyFoundFunc) {
   string key, line;
-  std::ifstream stream(fileName);
+  std::ifstream stream(filePath);
   if (stream.is_open()) {
      while (std::getline(stream, line)) {
       std::istringstream linestream(line);
@@ -233,9 +255,8 @@ string LinuxParser::ConvertToMb(string size, string unit) {
   } else if (unit == "kB") {
     double convertedSize = (stod(size)/1000);
     string sizeString = to_string(convertedSize);
-    // Remove unneseccary trailing 0s from the string
-    sizeString.erase(sizeString.find_last_not_of("0") + 1, string::npos);
-    return sizeString;
+    // Cut off after 2 decimal places
+    return sizeString.substr(0, sizeString.find(".") + 3);
   }
   return size;
 }
@@ -264,4 +285,21 @@ string LinuxParser::GetActiveJiffiesFromStream(std::istringstream &linestream) {
   string user, nice, system, idle, iowait, irq, softirq, steal;
   linestream >> user >> nice >> system >> idle >> iowait >> irq >> softirq >> steal;
   return to_string(stol(user) + stol(nice) + stol(system) + stol(irq) + stol(softirq) + stol(steal));
+}
+
+long LinuxParser::GetProccessStartTime(int pid) {
+  string filePath = kProcDirectory + to_string(pid) + kStatFilename;
+  string key, line;
+  std::ifstream stream(filePath);
+  if (stream.is_open()) {
+    std::getline(stream, line);
+    std::istringstream linestream(line);
+    // #22 starttime - Time when the process started, measured in clock ticks
+    int startTimeIndex = 22;
+    string startTimeString = LinuxParser::GetValueFromLineStream(linestream, startTimeIndex);
+    if (!startTimeString.empty()) {
+      return stol(startTimeString);
+    }
+  }
+  return 0; 
 }

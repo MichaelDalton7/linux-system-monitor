@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <regex>
+#include <vector>
 #include <string>
 
 namespace LinuxParser {
@@ -17,6 +18,7 @@ const std::string kMeminfoFilename{"/meminfo"};
 const std::string kVersionFilename{"/version"};
 const std::string kOSPath{"/etc/os-release"};
 const std::string kPasswordPath{"/etc/passwd"};
+const std::string kProcPathPrefix{"/proc"};
 
 // System
 float MemoryUtilization();
@@ -75,6 +77,7 @@ std::string GetIdleJiffiesFromStream(std::istringstream &linestream);
 std::string GetActiveJiffiesFromStream(std::istringstream &linestream);
 std::string ConvertToMb(std::string size, std::string unit);
 std::string GetValueFromLineStream(std::istringstream &linestream, int searchedIndex);
+long GetProccessStartTime(int pid);
 };  // namespace LinuxParser
 
 #endif

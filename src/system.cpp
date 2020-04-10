@@ -32,7 +32,7 @@ bool System::compareProcesses(Process& a, Process& b) {
 // DONE: Return a container composed of the system's processes
 vector<Process>& System::Processes() { 
     vector<int> processIdsList = LinuxParser::Pids();
-    processes_ = {};
+    processes_.clear();
     for (auto pId: processIdsList) {
         processes_.push_back(Process(pId));
     }
@@ -68,5 +68,5 @@ int System::TotalProcesses() {
     return LinuxParser::TotalProcesses(); 
 }
 
-// TODO: Return the number of seconds since the system started running
-long int System::UpTime() { return 0; }
+// DONE: Return the number of seconds since the system started running
+long int System::UpTime() { return LinuxParser::UpTime(); }

@@ -21,7 +21,14 @@ int Process::Pid() const {
 }
 
 // TODO: Return this process's CPU utilization
-float Process::CpuUtilization() { return 0; }
+float Process::CpuUtilization() { 
+  long systemUptime = LinuxParser::UpTime();
+  long processUptime = LinuxParser::UpTime(Process::Pid());
+  long processActiveJiffies = LinuxParser::ActiveJiffies(Process::Pid());
+  long seconds = systemUptime - processUptime;
+  double activeInSeconds = (double) processActiveJiffies / (double) sysconf(_SC_CLK_TCK);
+  return (activeInSeconds / (double) seconds) * 100.0; 
+}
 
 // DONE: Return the command that generated this process
 string Process::Command() { 
@@ -49,7 +56,9 @@ long int Process::UpTime() {
   if (startTime_ < 0) {
     startTime_ = LinuxParser::UpTime(Process::Pid());
   }
-  return startTime_;
+  long systemUptime = LinuxParser::UpTime();
+  long difference = systemUptime - startTime_;
+  return systemUptime - difference;
 }
 
 // DONE: Overload the "less than" comparison operator for Process objects
