@@ -5,26 +5,28 @@
 
 // DONE: Return the aggregate CPU utilization
 float Processor::Utilization() { 
-    // PrevIdleJiffies = previdle + previowait
     // IdleJiffies = idle + iowait
+    long idleJiffies = LinuxParser::IdleJiffies();
 
-    // PrevActiveJiffies = prevuser + prevnice + prevsystem + previrq + prevsoftirq + prevsteal
     // ActiveJiffies = user + nice + system + irq + softirq + steal
+    long activeJiffies = LinuxParser::ActiveJiffies();
 
     // PrevTotalJiffies = PrevIdleJiffies + PrevNonIdleJiffies
+    long prevTotalJiffies = prevIdleJiffies_ + prevActiveJiffies_;
     // TotalJiffies = IdleJiffies + ActiveJiffies
+    long totalJiffies = idleJiffies + activeJiffies;
 
     // # differentiate: actual value minus the previous one
-    // totald = TotalJiffies - PrevTotalJiffies
-    // idled = IdleJiffies - PrevIdleJiffies
+    long totald = totalJiffies - prevTotalJiffies;
+    long idled = idleJiffies - prevIdleJiffies_;
 
-    // CPU_Percentage = (totald - idled)/totald
+    // Set previous states for next calculation
+    prevIdleJiffies_ = idleJiffies;
+    prevActiveJiffies_ = activeJiffies;
 
-    long activeJiffies = LinuxParser::ActiveJiffies();
-    long idleJiffies = LinuxParser::IdleJiffies();
-    long totalJiffies = idleJiffies + activeJiffies;
-    if (totalJiffies > 0) {
-        return (double) activeJiffies / (double) totalJiffies;
+    if (totald > 0) {
+        // CPU_Percentage = (totald - idled)/totald
+        return (double) (totald - idled) / (double) totald;
     }
     return 0.0; 
 }
